@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import random
+import time
 
 class RGen():
 	def __init__(self):
@@ -25,3 +26,11 @@ class RGen():
 
 	def run(self):
 		print(self.random())
+
+	def write(self, filename = 'history.txt'):
+		if (len(self._history) == 0):
+			print('List empty, generate a number first')
+		else:
+			f = open(filename, 'a')
+			f.write('Time: {} Number: {}\n'.format(time.ctime(), self._history[0]))
+			f.close()
