@@ -2,13 +2,47 @@
 
 import random
 import time
+from threading import Thread, Event
+import queue
 
-class RGen():
+class EventThread(Thread):
 	def __init__(self):
+		self._run = Event()
+		super().__init__()
+
+	def join(self):
+		self._run.clear()
+		return super().join()
+
+	def start(self):
+		self._run.set()
+		super().start()
+
+class Writer(EventThread):
+	def __init__(self, input, filename = 'history.txt'):
+		self._q = input
+		self._filename = filename
+		super().__init__()
+
+	def run(self):
+		f = open(self._filename, 'a')
+		while self._run.is_set():
+			try:
+				timestamp, num = self._q.get(timeout = 5)
+			except queue.Empty:
+				pass
+			else:
+				 f.write('Time: {} Number: {}\n'.format(time.ctime(timestamp), num))
+		f.close()
+
+class RGen(EventThread):
+	def __init__(self, output):
 		self._history = []
 		self._numbers = [1, 2, 3, 4, 5]
 		self._prob = [0.5, 0.25, 0.15, .05, .05]
+		self._output = output
 		random.seed()
+		super().__init__()
 
 	def _rand_gen(self):
 		return (random.choices(self._numbers, weights=self._prob, k=1).pop())
@@ -18,19 +52,29 @@ class RGen():
 		self._history.insert(0, num)
 		if len(self._history) > 100:
 			self._history.pop()
-		return num
+		timestamp = time.time()
+		self._output.put((timestamp, num))
+		return time.ctime(timestamp), num
 
 	def freq(self, *args):
 		nums = args if args else range(1,6)
 		return ['{} = {}%'.format(n, int(round((self._history.count(n) / len(self._history)) * 100))) for n in nums]
 
 	def run(self):
-		print(self.random())
+		while self._run.is_set():
+			print(self.random())
+			time.sleep(1)
 
-	def write(self, filename = 'history.txt'):
-		if (len(self._history) == 0):
-			print('List empty, generate a number first')
-		else:
-			f = open(filename, 'a')
-			f.write('Time: {} Number: {}\n'.format(time.ctime(), self._history[0]))
-			f.close()
+def gen_random():
+	q = queue.Queue()
+	w = Writer(q)
+	w.start()
+	r = RGen(q)
+	print('Press Enter to exit...')
+	r.start()
+	return w, r
+
+writer, worker = gen_random()
+input()
+worker.join()
+writer.join()
