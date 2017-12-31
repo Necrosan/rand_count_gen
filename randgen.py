@@ -65,16 +65,20 @@ class RGen(EventThread):
 			print(self.random())
 			time.sleep(1)
 
-def gen_random():
-	q = queue.Queue()
+def gen_random(workers = 5):
+	q = queue.PriorityQueue()
 	w = Writer(q)
 	w.start()
-	r = RGen(q)
+	r = [RGen(q) for x in range(workers)]
 	print('Press Enter to exit...')
-	r.start()
+	for x in r:
+		x.start()
 	return w, r
 
-writer, worker = gen_random()
+writer, workers = gen_random()
 input()
-worker.join()
+for w in workers:
+	w.join()
 writer.join()
+for w in workers:
+	print(w.freq())
